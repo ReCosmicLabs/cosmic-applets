@@ -482,6 +482,7 @@ enum Message {
     Pressed(window::Id),
     AppHover(u32, window::Id, bool),
     AppMove(u32, window::Id),
+    SurfaceEnter(window::Id),
     SurfaceLeft(window::Id),
     HoverOpen(u32, window::Id, u64),
     PopupHover(bool),
@@ -1209,11 +1210,8 @@ impl cosmic::Application for CosmicAppList {
                     hover.1 = self.hover_ctr;
                 }
                 if let Some(tx) = self.wayland_sender.as_ref() {
-                    let _ = tx.send(WaylandRequest::Toplevel(if self.is_focused(&handle) {
-                        ToplevelRequest::Minimize(handle)
-                    } else {
-                        ToplevelRequest::Activate(handle)
-                    }));
+                    // Clicar no app ja focado so traz a janela de novo, nunca minimiza.
+                    let _ = tx.send(WaylandRequest::Toplevel(ToplevelRequest::Activate(handle)));
                 }
                 if let Some(p) = self.popup.take() {
                     return destroy_popup(p.id);
@@ -1911,7 +1909,7 @@ impl cosmic::Application for CosmicAppList {
                 }
                 if self.hover_popup {
                     return iced::Task::perform(
-                        async move { sleep(Duration::from_millis(300)).await },
+                        async move { sleep(Duration::from_millis(600)).await },
                         move |()| Message::HoverClose(token),
                     )
                     .map(cosmic::action::app);
@@ -1921,6 +1919,12 @@ impl cosmic::Application for CosmicAppList {
                 // O mouse_area nao manda on_enter quando o cursor volta de fora da superficie.
                 if self.hover_app.is_none_or(|(h, _)| h != id) {
                     return self.update(Message::AppHover(id, parent_window_id, true));
+                }
+            }
+            Message::SurfaceEnter(window_id) => {
+                // A borda do popup fica fora do mouse_area: vale a superficie inteira.
+                if self.popup.as_ref().is_some_and(|p| p.id == window_id) {
+                    self.popup_hovered = true;
                 }
             }
             Message::SurfaceLeft(window_id) => {
@@ -1949,7 +1953,7 @@ impl cosmic::Application for CosmicAppList {
                     self.hover_ctr = self.hover_ctr.wrapping_add(1);
                     let token = self.hover_ctr;
                     return iced::Task::perform(
-                        async move { sleep(Duration::from_millis(300)).await },
+                        async move { sleep(Duration::from_millis(600)).await },
                         move |()| Message::HoverClose(token),
                     )
                     .map(cosmic::action::app);
@@ -2774,6 +2778,9 @@ impl cosmic::Application for CosmicAppList {
                 cosmic::iced::core::Event::Mouse(
                     cosmic::iced::core::mouse::Event::ButtonPressed(_),
                 ) => Some(Message::Pressed(id)),
+                cosmic::iced::core::Event::Mouse(
+                    cosmic::iced::core::mouse::Event::CursorEntered,
+                ) => Some(Message::SurfaceEnter(id)),
                 cosmic::iced::core::Event::Mouse(cosmic::iced::core::mouse::Event::CursorLeft) => {
                     Some(Message::SurfaceLeft(id))
                 }
