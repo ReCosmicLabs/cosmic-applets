@@ -1785,14 +1785,26 @@ impl cosmic::Application for CosmicAppList {
                         })
                         .unwrap_or(0);
                     self.hover_app = Some((id, token));
-                    if windows < 2 || self.popup.is_some() {
-                        return Task::none();
+                    let mut tasks = Vec::new();
+                    // Moving onto another icon dismisses a hover-opened list at once.
+                    if self.hover_popup
+                        && self.popup.as_ref().is_some_and(|p| {
+                            p.dock_item.id != id && p.popup_type == PopupType::ToplevelList
+                        })
+                    {
+                        self.hover_popup = false;
+                        tasks.push(self.close_popups());
                     }
-                    return iced::Task::perform(
-                        async move { sleep(Duration::from_millis(delay as u64)).await },
-                        move |()| Message::HoverOpen(id, parent_window_id, token),
-                    )
-                    .map(cosmic::action::app);
+                    if windows >= 2 && self.popup.is_none() {
+                        tasks.push(
+                            iced::Task::perform(
+                                async move { sleep(Duration::from_millis(delay as u64)).await },
+                                move |()| Message::HoverOpen(id, parent_window_id, token),
+                            )
+                            .map(cosmic::action::app),
+                        );
+                    }
+                    return Task::batch(tasks);
                 }
                 if self.hover_app.is_some_and(|(h, _)| h == id) {
                     self.hover_app = None;
