@@ -486,7 +486,6 @@ enum Message {
     SurfaceLeft(window::Id),
     HoverOpen(u32, window::Id, u64),
     PopupHover(bool),
-    PopupMove,
     HoverClose(u64),
     ToplevelListPopup(u32, window::Id),
     ToplevelHoverChanged(ExtForeignToplevelHandleV1, bool),
@@ -993,6 +992,42 @@ impl cosmic::Application for CosmicAppList {
     }
 
     fn update(&mut self, message: Self::Message) -> app::Task<Self::Message> {
+        if matches!(
+            message,
+            Message::AppHover(..)
+                | Message::SurfaceEnter(_)
+                | Message::SurfaceLeft(_)
+                | Message::HoverOpen(..)
+                | Message::PopupHover(_)
+                | Message::HoverClose(_)
+                | Message::ToplevelListPopup(..)
+                | Message::CloseRequested(_)
+        ) || matches!(message, Message::AppMove(id, _) if self.hover_app.is_none_or(|(h, _)| h != id))
+        {
+            if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
+                use std::io::Write;
+                if let Ok(mut f) = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(PathBuf::from(dir).join("cosmic-app-list-hover.log"))
+                {
+                    let _ = writeln!(
+                        f,
+                        "{:?} {:?} hover_app={:?} ctr={} popup={:?} hover_popup={} popup_hovered={}",
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis())
+                            .unwrap_or(0),
+                        message,
+                        self.hover_app,
+                        self.hover_ctr,
+                        self.popup.as_ref().map(|p| (p.id, p.dock_item.id)),
+                        self.hover_popup,
+                        self.popup_hovered
+                    );
+                }
+            }
+        }
         match message {
             Message::Popup(id, parent_window_id) => {
                 if let Some(Popup {
@@ -1909,7 +1944,7 @@ impl cosmic::Application for CosmicAppList {
                 }
                 if self.hover_popup {
                     return iced::Task::perform(
-                        async move { sleep(Duration::from_millis(600)).await },
+                        async move { sleep(Duration::from_millis(150)).await },
                         move |()| Message::HoverClose(token),
                     )
                     .map(cosmic::action::app);
@@ -1922,9 +1957,9 @@ impl cosmic::Application for CosmicAppList {
                 }
             }
             Message::SurfaceEnter(window_id) => {
-                // A borda do popup fica fora do mouse_area: vale a superficie inteira.
+                // As miniaturas capturam o movimento: o hover da lista vale pela superficie inteira.
                 if self.popup.as_ref().is_some_and(|p| p.id == window_id) {
-                    self.popup_hovered = true;
+                    return self.update(Message::PopupHover(true));
                 }
             }
             Message::SurfaceLeft(window_id) => {
@@ -1935,9 +1970,6 @@ impl cosmic::Application for CosmicAppList {
                 } else if let Some((h, _)) = self.hover_app {
                     return self.update(Message::AppHover(h, window_id, false));
                 }
-            }
-            Message::PopupMove => {
-                self.popup_hovered = true;
             }
             Message::HoverOpen(id, parent_window_id, token) => {
                 if self.hover_app != Some((id, token)) || self.popup.is_some() {
@@ -1953,7 +1985,7 @@ impl cosmic::Application for CosmicAppList {
                     self.hover_ctr = self.hover_ctr.wrapping_add(1);
                     let token = self.hover_ctr;
                     return iced::Task::perform(
-                        async move { sleep(Duration::from_millis(600)).await },
+                        async move { sleep(Duration::from_millis(150)).await },
                         move |()| Message::HoverClose(token),
                     )
                     .map(cosmic::action::app);
@@ -2508,12 +2540,7 @@ impl cosmic::Application for CosmicAppList {
                         }
                         self.core
                             .applet
-                            .popup_container(
-                                mouse_area(content)
-                                    .on_enter(Message::PopupHover(true))
-                                    .on_move(|_| Message::PopupMove)
-                                    .on_exit(Message::PopupHover(false)),
-                            )
+                            .popup_container(content)
                             .limits(Limits::NONE.min_width(1.).min_height(1.).max_height(1000.))
                             .into()
                     }
@@ -2530,12 +2557,7 @@ impl cosmic::Application for CosmicAppList {
                         }
                         self.core
                             .applet
-                            .popup_container(
-                                mouse_area(content)
-                                    .on_enter(Message::PopupHover(true))
-                                    .on_move(|_| Message::PopupMove)
-                                    .on_exit(Message::PopupHover(false)),
-                            )
+                            .popup_container(content)
                             .limits(Limits::NONE.min_width(1.).min_height(1.).max_height(1000.))
                             .into()
                     }
