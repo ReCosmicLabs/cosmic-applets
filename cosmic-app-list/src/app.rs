@@ -257,7 +257,8 @@ impl DockItem {
             .height(Length::Fixed(16.0))
             .align_y(Alignment::Center)
             .class(theme::Container::custom(|theme| container::Style {
-                background: Some(Background::Color(theme.cosmic().destructive_color().into())),
+                // Vermelho fixo (o do Discord): o destructive_color do tema sai rosa.
+                background: Some(Background::Color(cosmic::iced::Color::from_rgb8(0xED, 0x42, 0x45))),
                 border: Border {
                     radius: 8.0.into(),
                     width: 2.0,
