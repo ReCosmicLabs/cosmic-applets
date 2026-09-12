@@ -1130,6 +1130,10 @@ impl cosmic::Application for CosmicAppList {
                 }
             }
             Message::Toggle(handle) => {
+                // O clique cancela o timer do hover: sem isso a lista abria logo depois de a
+                // janela ja ter sido ativada.
+                self.hover_app = None;
+                self.hover_ctr = self.hover_ctr.wrapping_add(1);
                 if let Some(tx) = self.wayland_sender.as_ref() {
                     let _ = tx.send(WaylandRequest::Toplevel(if self.is_focused(&handle) {
                         ToplevelRequest::Minimize(handle)
