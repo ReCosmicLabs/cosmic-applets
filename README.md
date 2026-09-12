@@ -16,6 +16,9 @@ below is a modification of the original work, as required by section 5 of the GP
   case-insensitive.
 - **`show_divider`** (new key, `bool`, default `true`). When `false`, the divider between pinned favorites
   and running windows is not drawn.
+- **`hover_popup_delay_ms`** (new key, `Option<u32>`, default `None`). When set, resting the pointer on
+  the icon of an app with two or more windows opens its window list after that many milliseconds, and
+  the list closes shortly after the pointer leaves both the icon and the list. `None` keeps click-only.
 
 Files touched: `cosmic-app-list/cosmic-app-list-config/src/lib.rs`, `cosmic-app-list/src/app.rs`.
 

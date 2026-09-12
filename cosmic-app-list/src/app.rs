@@ -303,6 +303,8 @@ impl DockItem {
                     .width(Length::Shrink)
                     .height(Length::Shrink),
             )
+            .on_enter(Message::AppHover(*id, window_id, true))
+            .on_exit(Message::AppHover(*id, window_id, false))
             .on_right_release(Message::Popup(*id, window_id))
             .on_middle_release({
                 launch_on_preferred_gpu(desktop_info, gpus)
@@ -377,6 +379,10 @@ struct CosmicAppList {
     output_list: FxHashMap<WlOutput, OutputInfo>,
     locales: Vec<String>,
     hovered_toplevel: Option<ExtForeignToplevelHandleV1>,
+    hover_app: Option<(u32, u64)>,
+    hover_ctr: u64,
+    hover_popup: bool,
+    popup_hovered: bool,
     overflow_favorites_popup: Option<window::Id>,
     overflow_active_popup: Option<window::Id>,
 }
@@ -394,6 +400,10 @@ enum Message {
     UnpinApp(u32),
     Popup(u32, window::Id),
     Pressed(window::Id),
+    AppHover(u32, window::Id, bool),
+    HoverOpen(u32, window::Id, u64),
+    PopupHover(bool),
+    HoverClose(u64),
     ToplevelListPopup(u32, window::Id),
     ToplevelHoverChanged(ExtForeignToplevelHandleV1, bool),
     GpuRequest(Option<Vec<Gpu>>),
@@ -1755,6 +1765,77 @@ impl cosmic::Application for CosmicAppList {
                     return self.close_popups();
                 }
             }
+            Message::AppHover(id, parent_window_id, entering) => {
+                let Some(delay) = self.config.hover_popup_delay_ms else {
+                    return Task::none();
+                };
+                self.hover_ctr = self.hover_ctr.wrapping_add(1);
+                let token = self.hover_ctr;
+                if entering {
+                    let windows = self
+                        .active_list
+                        .iter()
+                        .chain(self.pinned_list.iter())
+                        .find(|t| t.id == id)
+                        .map(|t| {
+                            t.toplevels
+                                .iter()
+                                .filter(|(info, _)| self.is_on_current_monitor_and_workspace(info))
+                                .count()
+                        })
+                        .unwrap_or(0);
+                    self.hover_app = Some((id, token));
+                    if windows < 2 || self.popup.is_some() {
+                        return Task::none();
+                    }
+                    return iced::Task::perform(
+                        async move { sleep(Duration::from_millis(delay as u64)).await },
+                        move |()| Message::HoverOpen(id, parent_window_id, token),
+                    )
+                    .map(cosmic::action::app);
+                }
+                if self.hover_app.is_some_and(|(h, _)| h == id) {
+                    self.hover_app = None;
+                }
+                if self.hover_popup {
+                    return iced::Task::perform(
+                        async move { sleep(Duration::from_millis(300)).await },
+                        move |()| Message::HoverClose(token),
+                    )
+                    .map(cosmic::action::app);
+                }
+            }
+            Message::HoverOpen(id, parent_window_id, token) => {
+                if self.hover_app != Some((id, token)) || self.popup.is_some() {
+                    return Task::none();
+                }
+                self.hover_popup = true;
+                self.popup_hovered = false;
+                return self.update(Message::ToplevelListPopup(id, parent_window_id));
+            }
+            Message::PopupHover(entering) => {
+                self.popup_hovered = entering;
+                if !entering && self.hover_popup {
+                    self.hover_ctr = self.hover_ctr.wrapping_add(1);
+                    let token = self.hover_ctr;
+                    return iced::Task::perform(
+                        async move { sleep(Duration::from_millis(300)).await },
+                        move |()| Message::HoverClose(token),
+                    )
+                    .map(cosmic::action::app);
+                }
+            }
+            Message::HoverClose(token) => {
+                if self.hover_popup
+                    && token == self.hover_ctr
+                    && !self.popup_hovered
+                    && self.hover_app.is_none()
+                    && self.popup.as_ref().is_some_and(|p| p.popup_type == PopupType::ToplevelList)
+                {
+                    self.hover_popup = false;
+                    return self.close_popups();
+                }
+            }
             Message::Surface(a) => {
                 return cosmic::task::message(cosmic::Action::Surface(a));
             }
@@ -2281,7 +2362,11 @@ impl cosmic::Application for CosmicAppList {
                         }
                         self.core
                             .applet
-                            .popup_container(content)
+                            .popup_container(
+                                mouse_area(content)
+                                    .on_enter(Message::PopupHover(true))
+                                    .on_exit(Message::PopupHover(false)),
+                            )
                             .limits(Limits::NONE.min_width(1.).min_height(1.).max_height(1000.))
                             .into()
                     }
@@ -2298,7 +2383,11 @@ impl cosmic::Application for CosmicAppList {
                         }
                         self.core
                             .applet
-                            .popup_container(content)
+                            .popup_container(
+                                mouse_area(content)
+                                    .on_enter(Message::PopupHover(true))
+                                    .on_exit(Message::PopupHover(false)),
+                            )
                             .limits(Limits::NONE.min_width(1.).min_height(1.).max_height(1000.))
                             .into()
                     }

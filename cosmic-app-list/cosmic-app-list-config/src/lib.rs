@@ -25,6 +25,9 @@ pub struct AppListConfig {
     pub ignored: Vec<String>,
     /// Draw the rule between pinned apps and running ones.
     pub show_divider: bool,
+    /// Open the window list of an app with several windows when the pointer rests on its
+    /// icon for this many milliseconds; None keeps the click-only behavior.
+    pub hover_popup_delay_ms: Option<u32>,
 }
 
 impl Default for AppListConfig {
@@ -35,6 +38,7 @@ impl Default for AppListConfig {
             enable_drag_source: true,
             ignored: Vec::new(),
             show_divider: true,
+            hover_popup_delay_ms: None,
         }
     }
 }
