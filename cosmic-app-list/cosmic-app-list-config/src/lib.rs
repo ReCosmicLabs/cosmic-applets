@@ -34,6 +34,8 @@ pub struct AppListConfig {
     /// Show an unread counter on the icon, taken from the "(N)" prefix apps like Discord and
     /// WhatsApp put in their window title.
     pub title_badge: bool,
+    /// Apps (desktop ids) that never get the unread badge, whatever they publish.
+    pub badge_ignored: Vec<String>,
 }
 
 impl Default for AppListConfig {
@@ -47,6 +49,7 @@ impl Default for AppListConfig {
             hover_popup_delay_ms: None,
             click_last_window: false,
             title_badge: false,
+            badge_ignored: Vec::new(),
         }
     }
 }

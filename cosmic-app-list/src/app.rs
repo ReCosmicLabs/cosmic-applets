@@ -2013,7 +2013,8 @@ impl cosmic::Application for CosmicAppList {
                             self.core.main_window_id().unwrap(),
                             Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                             self.config.click_last_window.then_some(&self.last_active),
-                            self.config.title_badge,
+                            self.config.title_badge
+                                && !self.config.badge_ignored.iter().any(|i| i == dock_item.desktop_info.id()),
                             self.launcher_counts.get(dock_item.desktop_info.id()).copied().unwrap_or(0),
                         ),
                         dock_item
@@ -2076,7 +2077,8 @@ impl cosmic::Application for CosmicAppList {
                     self.core.main_window_id().unwrap(),
                     Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                     self.config.click_last_window.then_some(&self.last_active),
-                    self.config.title_badge,
+                    self.config.title_badge
+                        && !self.config.badge_ignored.iter().any(|i| i == item.desktop_info.id()),
                     self.launcher_counts.get(item.desktop_info.id()).copied().unwrap_or(0),
                 ),
             );
@@ -2132,7 +2134,8 @@ impl cosmic::Application for CosmicAppList {
                                 self.core.main_window_id().unwrap(),
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
-                                self.config.title_badge,
+                                self.config.title_badge
+                                    && !self.config.badge_ignored.iter().any(|i| i == dock_item.desktop_info.id()),
                                 self.launcher_counts.get(dock_item.desktop_info.id()).copied().unwrap_or(0),
                             ),
                             dock_item
@@ -2556,7 +2559,8 @@ impl cosmic::Application for CosmicAppList {
                                 id,
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
-                                self.config.title_badge,
+                                self.config.title_badge
+                                    && !self.config.badge_ignored.iter().any(|i| i == dock_item.desktop_info.id()),
                                 self.launcher_counts.get(dock_item.desktop_info.id()).copied().unwrap_or(0),
                             ),
                             dock_item
@@ -2667,7 +2671,8 @@ impl cosmic::Application for CosmicAppList {
                                 id,
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
-                                self.config.title_badge,
+                                self.config.title_badge
+                                    && !self.config.badge_ignored.iter().any(|i| i == dock_item.desktop_info.id()),
                                 self.launcher_counts.get(dock_item.desktop_info.id()).copied().unwrap_or(0),
                             ),
                             dock_item

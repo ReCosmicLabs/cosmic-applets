@@ -32,6 +32,9 @@ below is a modification of the original work, as required by section 5 of the GP
   task manager reads). The applet also owns the bus name `com.canonical.Unity`, because libunity only
   publishes the counter when that name has an owner (Electron asks `unity_inspector_get_unity_running`
   first); plasmashell does the same. The item keeps its width, so neighbours never shift.
+- **`badge_ignored`** (new key, `Vec<String>` of desktop ids, default empty). Apps listed here never get
+  the badge, from either source (the dotfiles list `google-chrome`, whose tab titles and download count
+  are noise).
 
 Files touched: `cosmic-app-list/cosmic-app-list-config/src/lib.rs`, `cosmic-app-list/src/app.rs`,
 `cosmic-app-list/src/launcher_entry.rs`.
