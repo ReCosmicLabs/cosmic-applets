@@ -29,7 +29,9 @@ below is a modification of the original work, as required by section 5 of the GP
   the larger of two sources: the "(N)" prefix that Discord, WhatsApp and similar apps put in their
   window title, and the `count` of the `com.canonical.Unity.LauncherEntry.Update` D-Bus signal
   (what Electron's `setBadgeCount` emits on Linux when libunity is installed; the same signal KDE's
-  task manager reads). The item keeps its width, so neighbours never shift.
+  task manager reads). The applet also owns the bus name `com.canonical.Unity`, because libunity only
+  publishes the counter when that name has an owner (Electron asks `unity_inspector_get_unity_running`
+  first); plasmashell does the same. The item keeps its width, so neighbours never shift.
 
 Files touched: `cosmic-app-list/cosmic-app-list-config/src/lib.rs`, `cosmic-app-list/src/app.rs`,
 `cosmic-app-list/src/launcher_entry.rs`.

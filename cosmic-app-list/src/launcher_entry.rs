@@ -33,6 +33,13 @@ async fn listen(
     output: &mut futures::channel::mpsc::Sender<LauncherEntryUpdate>,
 ) -> zbus::Result<()> {
     let connection = zbus::Connection::session().await?;
+    // O Electron so publica o contador se alguem for dono de `com.canonical.Unity` no bus
+    // (libunity pergunta ao UnityInspector se o Unity "esta rodando"). O plasmashell faz o
+    // mesmo. Sem isto o Discord chama setBadgeCount e a libunity engole. Segundo painel
+    // perde a disputa pelo nome e segue so escutando.
+    if let Err(why) = connection.request_name("com.canonical.Unity").await {
+        tracing::info!(?why, "LauncherEntry: com.canonical.Unity ja tem dono");
+    }
     let rule = zbus::MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
         .interface("com.canonical.Unity.LauncherEntry")?
@@ -51,7 +58,7 @@ async fn listen(
         else {
             continue;
         };
-        // "application://discord.desktop" -> "discord"
+        // "application://discord.desktop" ou "application://discord" (Electron) -> "discord"
         let desktop_id = uri
             .strip_prefix("application://")
             .unwrap_or(&uri)
