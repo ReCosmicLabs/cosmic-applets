@@ -31,6 +31,9 @@ pub struct AppListConfig {
     /// Clicking the icon of an app with several windows raises the last one that was focused
     /// instead of opening the window list (the list stays available on hover).
     pub click_last_window: bool,
+    /// Show an unread counter on the icon, taken from the "(N)" prefix apps like Discord and
+    /// WhatsApp put in their window title.
+    pub title_badge: bool,
 }
 
 impl Default for AppListConfig {
@@ -43,6 +46,7 @@ impl Default for AppListConfig {
             show_divider: true,
             hover_popup_delay_ms: None,
             click_last_window: false,
+            title_badge: false,
         }
     }
 }

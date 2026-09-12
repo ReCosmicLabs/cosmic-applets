@@ -191,6 +191,7 @@ impl DockItem {
         window_id: window::Id,
         filter: Option<&dyn Fn(&ToplevelInfo) -> bool>,
         last_active: Option<&FxHashMap<u32, ExtForeignToplevelHandleV1>>,
+        title_badge: bool,
     ) -> Element<'_, Message> {
         let Self {
             toplevels,
@@ -218,6 +219,54 @@ impl DockItem {
         .size(128)
         .width(app_icon.icon_size.into())
         .height(app_icon.icon_size.into());
+
+        // Nao lidas: soma do "(N)" que Discord, WhatsApp e afins poem no inicio do titulo.
+        let nao_lidas: u32 = if title_badge {
+            filtered_toplevels
+                .iter()
+                .filter_map(|(info, _)| {
+                    let resto = info.title.strip_prefix('(')?;
+                    let fim = resto.find(')')?;
+                    resto[..fim].trim().parse::<u32>().ok()
+                })
+                .sum()
+        } else {
+            0
+        };
+        let tamanho_icone = f32::from(app_icon.icon_size);
+        let icone = || -> Element<'_, Message> {
+            if nao_lidas == 0 {
+                return cosmic_icon.clone().into();
+            }
+            let texto = if nao_lidas > 99 { "99+".to_string() } else { nao_lidas.to_string() };
+            let badge = container(
+                cosmic::widget::text(texto)
+                    .size(9)
+                    .class(cosmic::theme::Text::Custom(|_| cosmic::iced::widget::text::Style {
+                        color: Some(cosmic::iced::Color::WHITE),
+                        selected_fill: cosmic::iced::Color::WHITE,
+                    })),
+            )
+            .padding([0, 4])
+            .height(Length::Fixed(14.0))
+            .align_y(Alignment::Center)
+            .class(theme::Container::custom(|theme| container::Style {
+                background: Some(Background::Color(theme.cosmic().destructive_color().into())),
+                border: Border { radius: 7.0.into(), ..Default::default() },
+                ..Default::default()
+            }));
+            cosmic::iced::widget::stack![
+                cosmic_icon.clone(),
+                container(badge)
+                    .width(Length::Fixed(tamanho_icone + 6.0))
+                    .height(Length::Fixed(tamanho_icone))
+                    .align_x(Alignment::End)
+                    .align_y(Alignment::Start),
+            ]
+            .width(Length::Fixed(tamanho_icone + 6.0))
+            .height(Length::Fixed(tamanho_icone))
+            .into()
+        };
 
         let indicator = {
             let container = if toplevel_count <= 1 {
@@ -257,12 +306,12 @@ impl DockItem {
             PanelAnchor::Left => row([
                 indicator.into(),
                 horizontal_space().width(Length::Fixed(1.0)).into(),
-                cosmic_icon.clone().into(),
+                icone(),
             ])
             .align_y(Alignment::Center)
             .into(),
             PanelAnchor::Right => row([
-                cosmic_icon.clone().into(),
+                icone(),
                 horizontal_space().width(Length::Fixed(1.0)).into(),
                 indicator.into(),
             ])
@@ -271,12 +320,12 @@ impl DockItem {
             PanelAnchor::Top => column([
                 indicator.into(),
                 vertical_space().height(Length::Fixed(1.0)).into(),
-                cosmic_icon.clone().into(),
+                icone(),
             ])
             .align_x(Alignment::Center)
             .into(),
             PanelAnchor::Bottom => column([
-                cosmic_icon.clone().into(),
+                icone(),
                 vertical_space().height(Length::Fixed(1.0)).into(),
                 indicator.into(),
             ])
@@ -1941,6 +1990,7 @@ impl cosmic::Application for CosmicAppList {
                             self.core.main_window_id().unwrap(),
                             Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                             self.config.click_last_window.then_some(&self.last_active),
+                            self.config.title_badge,
                         ),
                         dock_item
                             .desktop_info
@@ -2002,6 +2052,7 @@ impl cosmic::Application for CosmicAppList {
                     self.core.main_window_id().unwrap(),
                     Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                     self.config.click_last_window.then_some(&self.last_active),
+                    self.config.title_badge,
                 ),
             );
         } else if self.is_listening_for_dnd && self.pinned_list.is_empty() {
@@ -2056,6 +2107,7 @@ impl cosmic::Application for CosmicAppList {
                                 self.core.main_window_id().unwrap(),
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
+                                self.config.title_badge,
                             ),
                             dock_item
                                 .desktop_info
@@ -2478,6 +2530,7 @@ impl cosmic::Application for CosmicAppList {
                                 id,
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
+                                self.config.title_badge,
                             ),
                             dock_item
                                 .desktop_info
@@ -2587,6 +2640,7 @@ impl cosmic::Application for CosmicAppList {
                                 id,
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
+                                self.config.title_badge,
                             ),
                             dock_item
                                 .desktop_info

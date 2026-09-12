@@ -24,6 +24,10 @@ below is a modification of the original work, as required by section 5 of the GP
   its icon raises the window that was focused last (or minimizes it if it already has focus) instead of
   opening the window list; the list is still there on hover.
 
+- **`title_badge`** (new key, `bool`, default `false`). Draws an unread counter over the icon, read from
+  the "(N)" prefix that Discord, WhatsApp and similar apps put in their window title. No libunity or
+  LauncherEntry D-Bus needed.
+
 Files touched: `cosmic-app-list/cosmic-app-list-config/src/lib.rs`, `cosmic-app-list/src/app.rs`.
 
 Build: `cargo build --release -p cosmic-app-list`; the binary is `target/release/cosmic-app-list`.
