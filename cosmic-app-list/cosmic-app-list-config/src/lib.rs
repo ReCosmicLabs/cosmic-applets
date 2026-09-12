@@ -28,6 +28,9 @@ pub struct AppListConfig {
     /// Open the window list of an app with several windows when the pointer rests on its
     /// icon for this many milliseconds; None keeps the click-only behavior.
     pub hover_popup_delay_ms: Option<u32>,
+    /// Clicking the icon of an app with several windows raises the last one that was focused
+    /// instead of opening the window list (the list stays available on hover).
+    pub click_last_window: bool,
 }
 
 impl Default for AppListConfig {
@@ -39,6 +42,7 @@ impl Default for AppListConfig {
             ignored: Vec::new(),
             show_divider: true,
             hover_popup_delay_ms: None,
+            click_last_window: false,
         }
     }
 }

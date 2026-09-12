@@ -20,6 +20,10 @@ below is a modification of the original work, as required by section 5 of the GP
   the icon of an app with two or more windows opens its window list after that many milliseconds, and
   the list closes shortly after the pointer leaves both the icon and the list. `None` keeps click-only.
 
+- **`click_last_window`** (new key, `bool`, default `false`). With several windows of one app, a click on
+  its icon raises the window that was focused last (or minimizes it if it already has focus) instead of
+  opening the window list; the list is still there on hover.
+
 Files touched: `cosmic-app-list/cosmic-app-list-config/src/lib.rs`, `cosmic-app-list/src/app.rs`.
 
 Build: `cargo build --release -p cosmic-app-list`; the binary is `target/release/cosmic-app-list`.

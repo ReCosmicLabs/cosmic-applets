@@ -190,6 +190,7 @@ impl DockItem {
         dot_border_radius: [f32; 4],
         window_id: window::Id,
         filter: Option<&dyn Fn(&ToplevelInfo) -> bool>,
+        last_active: Option<&FxHashMap<u32, ExtForeignToplevelHandleV1>>,
     ) -> Element<'_, Message> {
         let Self {
             toplevels,
@@ -297,6 +298,14 @@ impl DockItem {
                         filtered_toplevels
                             .first()
                             .map(|t| Message::Toggle(t.0.foreign_toplevel.clone()))
+                    } else if let Some(ultimas) = last_active {
+                        // Varias janelas: vai direto pra ultima usada; a lista fica no hover.
+                        let alvo = ultimas
+                            .get(id)
+                            .filter(|h| filtered_toplevels.iter().any(|t| &t.0.foreign_toplevel == *h))
+                            .cloned()
+                            .or_else(|| filtered_toplevels.first().map(|t| t.0.foreign_toplevel.clone()));
+                        alvo.map(Message::Toggle)
                     } else {
                         Some(Message::ToplevelListPopup(*id, window_id))
                     })
@@ -380,6 +389,8 @@ struct CosmicAppList {
     locales: Vec<String>,
     hovered_toplevel: Option<ExtForeignToplevelHandleV1>,
     hover_app: Option<(u32, u64)>,
+    /// Ultima janela em foco de cada item da dock, pelo id do item.
+    last_active: FxHashMap<u32, ExtForeignToplevelHandleV1>,
     hover_ctr: u64,
     hover_popup: bool,
     popup_hovered: bool,
@@ -1445,6 +1456,10 @@ impl cosmic::Application for CosmicAppList {
                                         if info.app_id != t_info.app_id {
                                             updated_appid = true;
                                         }
+                                        if info.state.contains(&State::Activated) {
+                                            self.last_active
+                                                .insert(toplevel_list.id, info.foreign_toplevel.clone());
+                                        }
 
                                         *t_info = info.clone();
                                         break 'toplevel_loop;
@@ -1921,6 +1936,7 @@ impl cosmic::Application for CosmicAppList {
                             dot_radius,
                             self.core.main_window_id().unwrap(),
                             Some(&|info| self.is_on_current_monitor_and_workspace(info)),
+                            self.config.click_last_window.then_some(&self.last_active),
                         ),
                         dock_item
                             .desktop_info
@@ -1981,6 +1997,7 @@ impl cosmic::Application for CosmicAppList {
                     dot_radius,
                     self.core.main_window_id().unwrap(),
                     Some(&|info| self.is_on_current_monitor_and_workspace(info)),
+                    self.config.click_last_window.then_some(&self.last_active),
                 ),
             );
         } else if self.is_listening_for_dnd && self.pinned_list.is_empty() {
@@ -2034,6 +2051,7 @@ impl cosmic::Application for CosmicAppList {
                                 dot_radius,
                                 self.core.main_window_id().unwrap(),
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
+                                self.config.click_last_window.then_some(&self.last_active),
                             ),
                             dock_item
                                 .desktop_info
@@ -2455,6 +2473,7 @@ impl cosmic::Application for CosmicAppList {
                                 dot_radius,
                                 id,
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
+                                self.config.click_last_window.then_some(&self.last_active),
                             ),
                             dock_item
                                 .desktop_info
@@ -2563,6 +2582,7 @@ impl cosmic::Application for CosmicAppList {
                                 dot_radius,
                                 id,
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
+                                self.config.click_last_window.then_some(&self.last_active),
                             ),
                             dock_item
                                 .desktop_info
