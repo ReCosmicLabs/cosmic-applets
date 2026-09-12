@@ -21,6 +21,8 @@ pub struct AppListConfig {
     pub filter_top_levels: Option<ToplevelFilter>,
     pub favorites: Vec<String>,
     pub enable_drag_source: bool,
+    /// App IDs that never show up in the list, running or not.
+    pub ignored: Vec<String>,
 }
 
 impl Default for AppListConfig {
@@ -29,6 +31,7 @@ impl Default for AppListConfig {
             filter_top_levels: None,
             favorites: Vec::new(),
             enable_drag_source: true,
+            ignored: Vec::new(),
         }
     }
 }

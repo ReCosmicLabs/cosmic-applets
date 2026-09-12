@@ -653,6 +653,17 @@ impl CosmicAppList {
     fn is_on_current_monitor_and_workspace(&self, toplevel_info: &ToplevelInfo) -> bool {
         use cosmic_app_list_config::ToplevelFilter;
 
+        // An ignored app is hidden wherever it is: a panel-like window (a dock replacement,
+        // an always-on overlay) has no reason to take a slot in the task list.
+        if self
+            .config
+            .ignored
+            .iter()
+            .any(|ignored| ignored.eq_ignore_ascii_case(&toplevel_info.app_id))
+        {
+            return false;
+        }
+
         let on_active_workspace = self.active_workspaces.is_empty()
             || toplevel_info.workspace.is_empty()
             || self
