@@ -2038,7 +2038,11 @@ impl cosmic::Application for CosmicAppList {
         let show_pinned =
             !self.pinned_list.is_empty() || self.dnd_offer.is_some() || self.is_listening_for_dnd;
         let content_list: Vec<Element<_>> = if show_pinned && !self.active_list.is_empty() {
-            vec![favorites.into(), divider, active]
+            if self.config.show_divider {
+                vec![favorites.into(), divider, active]
+            } else {
+                vec![favorites.into(), active]
+            }
         } else if show_pinned {
             vec![favorites.into()]
         } else if !self.active_list.is_empty() {

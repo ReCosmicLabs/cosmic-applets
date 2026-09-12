@@ -23,6 +23,8 @@ pub struct AppListConfig {
     pub enable_drag_source: bool,
     /// App IDs that never show up in the list, running or not.
     pub ignored: Vec<String>,
+    /// Draw the rule between pinned apps and running ones.
+    pub show_divider: bool,
 }
 
 impl Default for AppListConfig {
@@ -32,6 +34,7 @@ impl Default for AppListConfig {
             favorites: Vec::new(),
             enable_drag_source: true,
             ignored: Vec::new(),
+            show_divider: true,
         }
     }
 }
