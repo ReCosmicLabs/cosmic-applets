@@ -24,11 +24,15 @@ below is a modification of the original work, as required by section 5 of the GP
   its icon raises the window that was focused last (or minimizes it if it already has focus) instead of
   opening the window list; the list is still there on hover.
 
-- **`title_badge`** (new key, `bool`, default `false`). Draws an unread counter over the icon, read from
-  the "(N)" prefix that Discord, WhatsApp and similar apps put in their window title. No libunity or
-  LauncherEntry D-Bus needed.
+- **`title_badge`** (new key, `bool`, default `false`). Draws an unread counter as a red dot with a
+  white number on the bottom-right corner of the icon, ringed by the panel background. The number is
+  the larger of two sources: the "(N)" prefix that Discord, WhatsApp and similar apps put in their
+  window title, and the `count` of the `com.canonical.Unity.LauncherEntry.Update` D-Bus signal
+  (what Electron's `setBadgeCount` emits on Linux when libunity is installed; the same signal KDE's
+  task manager reads). The item keeps its width, so neighbours never shift.
 
-Files touched: `cosmic-app-list/cosmic-app-list-config/src/lib.rs`, `cosmic-app-list/src/app.rs`.
+Files touched: `cosmic-app-list/cosmic-app-list-config/src/lib.rs`, `cosmic-app-list/src/app.rs`,
+`cosmic-app-list/src/launcher_entry.rs`.
 
 Build: `cargo build --release -p cosmic-app-list`; the binary is `target/release/cosmic-app-list`.
 The dotfiles install it to `~/.local/bin`, ahead of the distro package.

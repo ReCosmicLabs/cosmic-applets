@@ -3,6 +3,7 @@
 
 use crate::{
     fl,
+    launcher_entry::{LauncherEntryUpdate, launcher_entry_subscription},
     wayland_subscription::{
         OutputUpdate, ToplevelRequest, ToplevelUpdate, WaylandImage, WaylandRequest, WaylandUpdate,
         wayland_subscription,
@@ -192,6 +193,7 @@ impl DockItem {
         filter: Option<&dyn Fn(&ToplevelInfo) -> bool>,
         last_active: Option<&FxHashMap<u32, ExtForeignToplevelHandleV1>>,
         title_badge: bool,
+        launcher_count: u32,
     ) -> Element<'_, Message> {
         let Self {
             toplevels,
@@ -229,7 +231,8 @@ impl DockItem {
                     let fim = resto.find(')')?;
                     resto[..fim].trim().parse::<u32>().ok()
                 })
-                .sum()
+                .sum::<u32>()
+                .max(launcher_count)
         } else {
             0
         };
@@ -239,20 +242,27 @@ impl DockItem {
                 return cosmic_icon.clone().into();
             }
             let texto = if nao_lidas > 99 { "99+".to_string() } else { nao_lidas.to_string() };
+            // Bolinha vermelha no canto inferior direito, numero branco, anel da cor do fundo
+            // do painel pra destacar do icone (desenho do dock do macOS e do Windows 11).
             let badge = container(
                 cosmic::widget::text(texto)
                     .size(9)
+                    .font(cosmic::font::bold())
                     .class(cosmic::theme::Text::Custom(|_| cosmic::iced::widget::text::Style {
                         color: Some(cosmic::iced::Color::WHITE),
                         selected_fill: cosmic::iced::Color::WHITE,
                     })),
             )
             .padding([0, 4])
-            .height(Length::Fixed(14.0))
+            .height(Length::Fixed(16.0))
             .align_y(Alignment::Center)
             .class(theme::Container::custom(|theme| container::Style {
                 background: Some(Background::Color(theme.cosmic().destructive_color().into())),
-                border: Border { radius: 7.0.into(), ..Default::default() },
+                border: Border {
+                    radius: 8.0.into(),
+                    width: 2.0,
+                    color: theme.cosmic().bg_color().into(),
+                },
                 ..Default::default()
             }));
             // Mesmo tamanho do icone sem badge: alargar o item empurrava os vizinhos e o
@@ -263,7 +273,7 @@ impl DockItem {
                     .width(Length::Fixed(tamanho_icone))
                     .height(Length::Fixed(tamanho_icone))
                     .align_x(Alignment::End)
-                    .align_y(Alignment::Start),
+                    .align_y(Alignment::End),
             ]
             .width(Length::Fixed(tamanho_icone))
             .height(Length::Fixed(tamanho_icone))
@@ -442,6 +452,8 @@ struct CosmicAppList {
     hover_app: Option<(u32, u64)>,
     /// Ultima janela em foco de cada item da dock, pelo id do item.
     last_active: FxHashMap<u32, ExtForeignToplevelHandleV1>,
+    /// contador do LauncherEntry por id de .desktop (Discord e afins, via libunity)
+    launcher_counts: FxHashMap<String, u32>,
     hover_ctr: u64,
     hover_popup: bool,
     popup_hovered: bool,
@@ -458,6 +470,7 @@ pub enum PopupType {
 #[derive(Debug, Clone)]
 enum Message {
     Wayland(WaylandUpdate),
+    LauncherEntry(LauncherEntryUpdate),
     PinApp(u32),
     UnpinApp(u32),
     Popup(u32, window::Id),
@@ -1644,6 +1657,13 @@ impl cosmic::Application for CosmicAppList {
             Message::IncrementSubscriptionCtr => {
                 self.subscription_ctr += 1;
             }
+            Message::LauncherEntry(LauncherEntryUpdate { desktop_id, count }) => {
+                if count == 0 {
+                    self.launcher_counts.remove(&desktop_id);
+                } else {
+                    self.launcher_counts.insert(desktop_id, count);
+                }
+            }
             Message::ConfigUpdated(config) => {
                 self.config = config;
                 // drain to active list
@@ -1993,6 +2013,7 @@ impl cosmic::Application for CosmicAppList {
                             Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                             self.config.click_last_window.then_some(&self.last_active),
                             self.config.title_badge,
+                            self.launcher_counts.get(dock_item.desktop_info.id()).copied().unwrap_or(0),
                         ),
                         dock_item
                             .desktop_info
@@ -2055,6 +2076,7 @@ impl cosmic::Application for CosmicAppList {
                     Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                     self.config.click_last_window.then_some(&self.last_active),
                     self.config.title_badge,
+                    self.launcher_counts.get(item.desktop_info.id()).copied().unwrap_or(0),
                 ),
             );
         } else if self.is_listening_for_dnd && self.pinned_list.is_empty() {
@@ -2110,6 +2132,7 @@ impl cosmic::Application for CosmicAppList {
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
                                 self.config.title_badge,
+                                self.launcher_counts.get(dock_item.desktop_info.id()).copied().unwrap_or(0),
                             ),
                             dock_item
                                 .desktop_info
@@ -2533,6 +2556,7 @@ impl cosmic::Application for CosmicAppList {
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
                                 self.config.title_badge,
+                                self.launcher_counts.get(dock_item.desktop_info.id()).copied().unwrap_or(0),
                             ),
                             dock_item
                                 .desktop_info
@@ -2643,6 +2667,7 @@ impl cosmic::Application for CosmicAppList {
                                 Some(&|info| self.is_on_current_monitor_and_workspace(info)),
                                 self.config.click_last_window.then_some(&self.last_active),
                                 self.config.title_badge,
+                                self.launcher_counts.get(dock_item.desktop_info.id()).copied().unwrap_or(0),
                             ),
                             dock_item
                                 .desktop_info
@@ -2703,6 +2728,7 @@ impl cosmic::Application for CosmicAppList {
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             wayland_subscription().map(Message::Wayland),
+            launcher_entry_subscription().map(Message::LauncherEntry),
             listen_with(|e, _, id| match e {
                 cosmic::iced::core::Event::PlatformSpecific(event::PlatformSpecific::Wayland(
                     event::wayland::Event::Seat(e, seat),
