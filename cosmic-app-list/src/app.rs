@@ -375,6 +375,10 @@ impl DockItem {
                     .height(Length::Shrink),
             )
             .on_enter(Message::AppHover(*id, window_id, true))
+            .on_move({
+                let id = *id;
+                move |_| Message::AppMove(id, window_id)
+            })
             .on_exit(Message::AppHover(*id, window_id, false))
             .on_right_release(Message::Popup(*id, window_id))
             .on_middle_release({
@@ -477,8 +481,11 @@ enum Message {
     Popup(u32, window::Id),
     Pressed(window::Id),
     AppHover(u32, window::Id, bool),
+    AppMove(u32, window::Id),
+    SurfaceLeft(window::Id),
     HoverOpen(u32, window::Id, u64),
     PopupHover(bool),
+    PopupMove,
     HoverClose(u64),
     ToplevelListPopup(u32, window::Id),
     ToplevelHoverChanged(ExtForeignToplevelHandleV1, bool),
@@ -1197,8 +1204,10 @@ impl cosmic::Application for CosmicAppList {
             Message::Toggle(handle) => {
                 // O clique cancela o timer do hover: sem isso a lista abria logo depois de a
                 // janela ja ter sido ativada.
-                self.hover_app = None;
                 self.hover_ctr = self.hover_ctr.wrapping_add(1);
+                if let Some(hover) = self.hover_app.as_mut() {
+                    hover.1 = self.hover_ctr;
+                }
                 if let Some(tx) = self.wayland_sender.as_ref() {
                     let _ = tx.send(WaylandRequest::Toplevel(if self.is_focused(&handle) {
                         ToplevelRequest::Minimize(handle)
@@ -1908,6 +1917,24 @@ impl cosmic::Application for CosmicAppList {
                     .map(cosmic::action::app);
                 }
             }
+            Message::AppMove(id, parent_window_id) => {
+                // O mouse_area nao manda on_enter quando o cursor volta de fora da superficie.
+                if self.hover_app.is_none_or(|(h, _)| h != id) {
+                    return self.update(Message::AppHover(id, parent_window_id, true));
+                }
+            }
+            Message::SurfaceLeft(window_id) => {
+                if self.popup.as_ref().is_some_and(|p| p.id == window_id) {
+                    if self.popup_hovered {
+                        return self.update(Message::PopupHover(false));
+                    }
+                } else if let Some((h, _)) = self.hover_app {
+                    return self.update(Message::AppHover(h, window_id, false));
+                }
+            }
+            Message::PopupMove => {
+                self.popup_hovered = true;
+            }
             Message::HoverOpen(id, parent_window_id, token) => {
                 if self.hover_app != Some((id, token)) || self.popup.is_some() {
                     return Task::none();
@@ -2480,6 +2507,7 @@ impl cosmic::Application for CosmicAppList {
                             .popup_container(
                                 mouse_area(content)
                                     .on_enter(Message::PopupHover(true))
+                                    .on_move(|_| Message::PopupMove)
                                     .on_exit(Message::PopupHover(false)),
                             )
                             .limits(Limits::NONE.min_width(1.).min_height(1.).max_height(1000.))
@@ -2501,6 +2529,7 @@ impl cosmic::Application for CosmicAppList {
                             .popup_container(
                                 mouse_area(content)
                                     .on_enter(Message::PopupHover(true))
+                                    .on_move(|_| Message::PopupMove)
                                     .on_exit(Message::PopupHover(false)),
                             )
                             .limits(Limits::NONE.min_width(1.).min_height(1.).max_height(1000.))
@@ -2745,6 +2774,9 @@ impl cosmic::Application for CosmicAppList {
                 cosmic::iced::core::Event::Mouse(
                     cosmic::iced::core::mouse::Event::ButtonPressed(_),
                 ) => Some(Message::Pressed(id)),
+                cosmic::iced::core::Event::Mouse(cosmic::iced::core::mouse::Event::CursorLeft) => {
+                    Some(Message::SurfaceLeft(id))
+                }
                 _ => None,
             }),
             rectangle_tracker_subscription(0).map(|update| Message::Rectangle(update.1)),
