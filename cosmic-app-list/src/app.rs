@@ -255,15 +255,17 @@ impl DockItem {
                 border: Border { radius: 7.0.into(), ..Default::default() },
                 ..Default::default()
             }));
+            // Mesmo tamanho do icone sem badge: alargar o item empurrava os vizinhos e o
+            // painel cortava o icone. O badge cobre o canto superior direito do proprio icone.
             cosmic::iced::widget::stack![
                 cosmic_icon.clone(),
                 container(badge)
-                    .width(Length::Fixed(tamanho_icone + 6.0))
+                    .width(Length::Fixed(tamanho_icone))
                     .height(Length::Fixed(tamanho_icone))
                     .align_x(Alignment::End)
                     .align_y(Alignment::Start),
             ]
-            .width(Length::Fixed(tamanho_icone + 6.0))
+            .width(Length::Fixed(tamanho_icone))
             .height(Length::Fixed(tamanho_icone))
             .into()
         };
