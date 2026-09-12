@@ -6,7 +6,7 @@
 
 ## Changes in this fork
 
-Maintained by [eualexandrerrr](https://github.com/eualexandrerrr) for the
+Maintained by [ReCosmicLabs](https://github.com/ReCosmicLabs) for the
 [dotfiles](https://github.com/eualexandrerrr/dotfiles) setup. Only `cosmic-app-list` is modified; everything
 below is a modification of the original work, as required by section 5 of the GPL.
 
